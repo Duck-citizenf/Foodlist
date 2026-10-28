@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Домашние запасы</title>
+<style>
+  :root{
+    --bg:#f4f6fb;
+    --text:#1c2333;
+    --muted:#7b849b;
+    --have-bg:#e9f9ef;
+    --have-border:#2ecc71;
+    --have-text:#178a4a;
+    --miss-bg:#f2f3f7;
+    --miss-border:#d5d9e3;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    padding:28px 16px 64px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%, #dfe9ff 0%, var(--bg) 55%) fixed;
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  h1{font-size:clamp(24px,5vw,32px);margin:0 0 6px;letter-spacing:-.5px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:15px}
+
+  /* ---------- сводка ---------- */
+  .summary{
+    background:#fff;border-radius:20px;padding:16px 18px;margin-bottom:22px;
+    box-shadow:0 6px 24px rgba(30,50,90,.08);
+  }
+  .summary-top{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:10px;margin-bottom:10px;font-weight:600;font-size:15px;
+  }
+  .summary-top .count{color:var(--have-text)}
+  .bar{height:10px;border-radius:99px;background:#e8ebf3;overflow:hidden}
+  .bar i{
+    display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,#34d17c,#22b160);
+    transition:width .3s ease;
+  }
+
+  /* ---------- карточки ---------- */
+  .grid{
+    display:grid;gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  }
+  .card{
+    position:relative;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:18px 12px 14px;
+    border-radius:20px;border:2px solid var(--miss-border);
+    background:var(--miss-bg);color:inherit;font:inherit;
+    cursor:pointer;appearance:none;-webkit-tap-highlight-color:transparent;
+    transition:transform .12s ease, background .2s, border-color .2s, box-shadow .2s;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(30,50,90,.10)}
+  .card:active{transform:scale(.97)}
+  .card:focus-visible{outline:3px solid #8fb3ff;outline-offset:3px}
+  .card.have{background:var(--have-bg);border-color:var(--have-border)}
+  .card .emoji{font-size:34px;line-height:1;filter:grayscale(.6);transition:filter .2s}
+  .card.have .emoji{filter:none}
+  .card .name{font-weight:600;font-size:15px;text-align:center;word-break:break-word}
+  .pill{
+    font-size:12px;font-weight:700;padding:3px 12px;border-radius:99px;
+    background:#dfe3ec;color:var(--muted);transition:background .2s,color .2s;
+  }
+  .card.have .pill{background:var(--have-border);color:#fff}
+
+  .del{
+    position:absolute;top:6px;right:6px;
+    width:24px;height:24px;line-height:22px;text-align:center;
+    border-radius:50%;font-size:17px;color:var(--muted);
+    opacity:0;transition:opacity .15s, background .15s, color .15s;
+    user-select:none;
+  }
+  .card:hover .del{opacity:1}
+  .del:hover{background:rgba(231,76,60,.12);color:#e74c3c}
+  @media (hover:none){ .del{opacity:.55} }
+
+  .empty{
+    grid-column:1/-1;text-align:center;color:var(--muted);
+    padding:32px 12px;background:#fff;border-radius:20px;
+    border:2px dashed var(--miss-border);font-size:15px;
+  }
+
+  /* ---------- форма ---------- */
+  .add{display:flex;gap:10px;margin-top:24px}
+  .add input{
+    flex:1;min-width:0;padding:13px 16px;border-radius:14px;
+    border:2px solid #e1e5ef;background:#fff;font:inherit;outline:none;
+    transition:border-color .2s;
+  }
+  .add input:focus{border-color:#8fb3ff}
+  .btn{
+    padding:13px 18px;border-radius:14px;border:none;
+    background:#1c2333;color:#fff;font:inherit;font-weight:600;
+    cursor:pointer;transition:background .2s,transform .1s;white-space:nowrap;
+  }
+  .btn:hover{background:#2b3550}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:#fff;color:var(--text);border:2px solid #e1e5ef}
+  .btn.ghost:hover{background:#f6f8fc}
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Домашние запасы 🏠</h1>
+  <p class="sub">Нажмите на карточку, чтобы отметить, есть ли продукт дома.</p>
+
+  <div class="summary">
+    <div class="summary-top">
+      <span>Есть дома</span>
+      <span class="count" id="count">0 из 0</span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <form class="add" id="addForm">
+    <input type="text" id="newName" placeholder="Добавить продукт…" maxlength="30" autocomplete="off">
+    <button class="btn" type="submit">Добавить</button>
+  </form>
+
+  <div class="actions">
+    <button class="btn ghost" id="resetBtn" type="button">Сбросить всё на «Нет»</button>
+    <button class="btn ghost" id="restoreBtn" type="button">Вернуть стандартный список</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "home-stock-v1";
+
+  const DEFAULT_ITEMS = [
+    { id: "oil",   name: "Масло",  emoji: "🧈" },
+    { id: "water", name: "Вода",   emoji: "💧" },
+    { id: "eggs",  name: "Яйца",   emoji: "🥚" },
+    { id: "milk",  name: "Молоко", emoji: "🥛" },
+    { id: "bread", name: "Хлеб",   emoji: "🍞" },
+    { id: "bun",   name: "Булка",  emoji: "🥐" }
+  ];
+
+  const grid      = document.getElementById("grid");
+  const countEl   = document.getElementById("count");
+  const barEl     = document.getElementById("bar");
+  const addForm   = document.getElementById("addForm");
+  const newName   = document.getElementById("newName");
+  const resetBtn  = document.getElementById("resetBtn");
+  const restoreBtn= document.getElementById("restoreBtn");
+
+  let items = load();
+
+  /* ---------- хранилище ---------- */
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw !== null) {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) return data;
+      }
+    } catch (e) { /* игнорируем повреждённые данные */ }
+    return DEFAULT_ITEMS.map(function (i) {
+      return { id: i.id, name: i.name, emoji: i.emoji, have: false };
+    });
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (e) { /* приватный режим и т.п. */ }
+  }
+
+  /* ---------- утилиты ---------- */
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------- отрисовка ---------- */
+  function render() {
+    grid.innerHTML = "";
+
+    if (items.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Список пуст — добавьте продукт ниже 👇";
+      grid.appendChild(empty);
+    }
+
+    items.forEach(function (item) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "card" + (item.have ? " have" : "");
+      card.setAttribute("aria-pressed", item.have ? "true" : "false");
+      card.setAttribute("aria-label", item.name + ": " + (item.have ? "есть" : "нет"));
+      card.innerHTML =
+        '<span class="del" title="Удалить">×</span>' +
+        '<span class="emoji">' + item.emoji + "</span>" +
+        '<span class="name">' + escapeHtml(item.name) + "</span>" +
+        '<span class="pill">' + (item.have ? "Есть" : "Нет") + "</span>";
+
+      card.addEventListener("click", function () {
+        item.have = !item.have;
+        save();
+        render();
+      });
+
+      card.querySelector(".del").addEventListener("click", function (e) {
+        e.stopPropagation();
+        items = items.filter(function (i) { return i.id !== item.id; });
+        save();
+        render();
+      });
+
+      grid.appendChild(card);
+    });
+
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const total = items.length;
+    const have = items.filter(function (i) { return i.have; }).length;
+    countEl.textContent = total ? have + " из " + total : "—";
+    barEl.style.width = total ? (have / total * 100) + "%" : "0%";
+  }
+
+  /* ---------- добавление ---------- */
+  addForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const name = newName.value.trim();
+    if (!name) return;
+
+    items.push({
+      id: "custom-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      name: name,
+      emoji: "📦",
+      have: true
+    });
+
+    newName.value = "";
+    save();
+    render();
+    newName.focus();
+  });
+
+  /* ---------- кнопки ---------- */
+  resetBtn.addEventListener("click", function () {
+    items.forEach(function (i) { i.have = false; });
+    save();
+    render();
+  });
+
+  restoreBtn.addEventListener("click", function () {
+    if (!confirm("Вернуть стандартный список продуктов? Добавленные вручную исчезнут.")) return;
+    items = DEFAULT_ITEMS.map(function (i) {
+      return { id: i.id, name: i.name, emoji: i.emoji, have: false };
+    });
+    save();
+    render();
+  });
+
+  /* ---------- старт ---------- */
+  render();
+})();
+</script>
+</body>
+</html>
